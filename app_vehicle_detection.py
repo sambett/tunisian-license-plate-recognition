@@ -64,19 +64,25 @@ st.markdown("""
 
 @st.cache_resource
 def load_model():
-    """Load the trained vehicle detection model (cached)"""
-    model_path = "runs_vehicle/yolov8n_vehicle_20h/weights/best.pt"
+    """Load the vehicle detection model (cached)"""
+    # Try to load custom trained model first
+    custom_model_path = "runs_vehicle/yolov8n_vehicle_20h/weights/best.pt"
 
-    if not Path(model_path).exists():
-        st.error(f"❌ Model not found at: {model_path}")
-        st.info("Please make sure you have trained the model first.")
-        st.stop()
+    if Path(custom_model_path).exists():
+        st.success("✅ Using custom trained model")
+        model = YOLO(custom_model_path)
+        return model, "custom"
 
-    model = YOLO(model_path)
-    return model
+    # Fall back to pretrained YOLOv8 model from Ultralytics
+    st.warning("⚠️ Custom model not found. Using pretrained YOLOv8n model.")
+    st.info("Note: Pretrained model detects 80 classes (including cars, trucks, buses, motorcycles)")
+
+    # This will auto-download the pretrained model
+    model = YOLO('yolov8n.pt')
+    return model, "pretrained"
 
 
-def process_image(image, model, conf_threshold):
+def process_image(image, model, conf_threshold, model_type="custom"):
     """
     Process image and detect vehicles.
 
@@ -84,6 +90,7 @@ def process_image(image, model, conf_threshold):
         image: PIL Image
         model: YOLO model
         conf_threshold: Confidence threshold
+        model_type: "custom" or "pretrained"
 
     Returns:
         annotated_image: Image with bounding boxes
@@ -98,12 +105,24 @@ def process_image(image, model, conf_threshold):
 
     # Run inference
     start_time = time.time()
-    results = model.predict(
-        img_bgr,
-        conf=conf_threshold,
-        device='cpu',
-        verbose=False
-    )
+
+    # For pretrained model, only detect vehicle classes (2=car, 3=motorcycle, 5=bus, 7=truck)
+    if model_type == "pretrained":
+        results = model.predict(
+            img_bgr,
+            conf=conf_threshold,
+            device='cpu',
+            verbose=False,
+            classes=[2, 3, 5, 7]  # Filter to vehicle classes only
+        )
+    else:
+        results = model.predict(
+            img_bgr,
+            conf=conf_threshold,
+            device='cpu',
+            verbose=False
+        )
+
     inference_time = time.time() - start_time
 
     # Get annotated image
@@ -116,15 +135,24 @@ def process_image(image, model, conf_threshold):
     detections = []
     boxes = results[0].boxes
 
+    # Class names for pretrained model
+    vehicle_classes = {2: 'car', 3: 'motorcycle', 5: 'bus', 7: 'truck'}
+
     for box in boxes:
         x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
         conf = box.conf[0].cpu().numpy()
-        cls = box.cls[0].cpu().numpy()
+        cls = int(box.cls[0].cpu().numpy())
+
+        # Get class name
+        if model_type == "pretrained":
+            class_name = vehicle_classes.get(cls, 'vehicle')
+        else:
+            class_name = 'vehicle'
 
         detections.append({
             'bbox': [int(x1), int(y1), int(x2), int(y2)],
             'confidence': float(conf),
-            'class': 'vehicle',
+            'class': class_name,
             'area': int((x2 - x1) * (y2 - y1))
         })
 
@@ -144,9 +172,7 @@ def main():
 
     # Load model
     with st.spinner("Loading model..."):
-        model = load_model()
-
-    st.success("✅ Model loaded successfully!")
+        model, model_type = load_model()
 
     # Sidebar
     st.sidebar.header("⚙️ Settings")
@@ -219,7 +245,7 @@ def main():
                 # Process image
                 with st.spinner("Detecting vehicles..."):
                     annotated_img, detections, inference_time = process_image(
-                        image, model, conf_threshold
+                        image, model, conf_threshold, model_type
                     )
 
                 # Display annotated image
@@ -320,7 +346,7 @@ def main():
 
                     with st.spinner("Detecting vehicles..."):
                         annotated_img, detections, inference_time = process_image(
-                            sample_img, model, conf_threshold
+                            sample_img, model, conf_threshold, model_type
                         )
 
                     st.image(annotated_img, caption="Detection Result", use_container_width=True)
