@@ -1,0 +1,77 @@
+# Claude Code files
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+vehicle-plate/
+.conda/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Dataset (too large for Git)
+dataset/
+datasets/
+
+# YOLO Training Outputs
+runs/
+runs_vehicle/
+yolov8*.pt
+*.pt
+
+# Temporary files
+temp_test_subset/
+test_results/
+
+# Cache files
+*.cache
+labels.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# Downloaded models (will re-download if needed)
+yolov8n.pt
+yolov8s.pt
+Arial.ttf
