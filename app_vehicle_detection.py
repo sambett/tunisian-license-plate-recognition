@@ -30,6 +30,7 @@ from PIL import Image
 from ultralytics import YOLO
 from pathlib import Path
 import time
+import io
 
 # Page configuration
 st.set_page_config(
@@ -157,6 +158,37 @@ def process_image(image, model, conf_threshold, model_type="custom"):
         })
 
     return annotated_img_rgb, detections, inference_time
+
+
+def crop_vehicles(image, detections):
+    """Crop detected vehicles from original image"""
+    img_array = np.array(image)
+    cropped_vehicles = []
+
+    for det in detections:
+        x1, y1, x2, y2 = det['bbox']
+
+        # Add 5% padding
+        width = x2 - x1
+        height = y2 - y1
+        padding_x = int(width * 0.05)
+        padding_y = int(height * 0.05)
+
+        x1_padded = max(0, x1 - padding_x)
+        y1_padded = max(0, y1 - padding_y)
+        x2_padded = min(image.width, x2 + padding_x)
+        y2_padded = min(image.height, y2 + padding_y)
+
+        cropped = img_array[y1_padded:y2_padded, x1_padded:x2_padded]
+        cropped_pil = Image.fromarray(cropped)
+
+        cropped_vehicles.append({
+            'image': cropped_pil,
+            'bbox': det['bbox'],
+            'confidence': det['confidence']
+        })
+
+    return cropped_vehicles
 
 
 def main():
@@ -305,14 +337,44 @@ def main():
 
                 st.dataframe(table_data, use_container_width=True)
 
+                # Crop and display vehicles
+                st.markdown("### ✂️ Vehicle Crops")
+
+                cropped_vehicles = crop_vehicles(image, detections)
+
+                num_cols = 4
+                cols = st.columns(num_cols)
+
+                for i, crop_data in enumerate(cropped_vehicles):
+                    col_idx = i % num_cols
+                    with cols[col_idx]:
+                        st.image(
+                            crop_data['image'],
+                            caption=f"Vehicle {i+1}\n{crop_data['confidence']:.2%}",
+                            use_container_width=True
+                        )
+
+                        img_buffer = io.BytesIO()
+                        # Convert RGBA to RGB if needed
+                        crop_img = crop_data['image']
+                        if crop_img.mode == 'RGBA':
+                            crop_img = crop_img.convert('RGB')
+                        crop_img.save(img_buffer, format='JPEG')
+                        st.download_button(
+                            label=f"⬇️ Vehicle {i+1}",
+                            data=img_buffer.getvalue(),
+                            file_name=f"{uploaded_file.name.rsplit('.', 1)[0]}_vehicle_{i+1:03d}.jpg",
+                            mime="image/jpeg",
+                            key=f"download_{idx}_{i}"
+                        )
+
                 # Download button for annotated image
-                st.markdown("### 💾 Download")
+                st.markdown("### 💾 Download Annotated Image")
 
                 # Convert to PIL for saving
                 annotated_pil = Image.fromarray(annotated_img)
 
                 # Save to bytes
-                import io
                 buf = io.BytesIO()
                 annotated_pil.save(buf, format='JPEG')
                 byte_im = buf.getvalue()
