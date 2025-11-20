@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<annotation>
+  <folder>license_plates_detection_train</folder>
+  <filename>202.jpg</filename>
+  <path>C:\Users\SelmaB\Desktop\detection\license_plates_detection_train\annotations\202.jpg</path>
+  <source>
+    <database>Unknown</database>
+  </source>
+  <size>
+    <width>639</width>
+    <height>479</height>
+    <depth>3</depth>
+  </size>
+  <segmented>0</segmented>
+  <object>
+    <name>license_plate</name>
+    <pose>Unspecified</pose>
+    <truncated>0</truncated>
+    <difficult>0</difficult>
+    <bndbox>
+      <xmin>179</xmin>
+      <ymin>239</ymin>
+      <xmax>212</xmax>
+      <ymax>274</ymax>
+    </bndbox>
+  </object>
+</annotation>

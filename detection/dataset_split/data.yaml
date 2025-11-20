@@ -1,0 +1,14 @@
+# License Plate Detection Dataset Configuration for YOLOv8/v11
+# Dataset paths (relative to this file or absolute)
+
+path: C:\Users\SelmaB\Desktop\detection\dataset_split  # dataset root dir
+train: train/images  # train images (relative to 'path')
+val: val/images  # val images (relative to 'path')
+test: test/images  # test images (relative to 'path')
+
+# Classes
+names:
+  0: license_plate
+
+# Number of classes
+nc: 1

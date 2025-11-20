@@ -1,0 +1,21 @@
+Dataset Split Information
+============================================================
+
+Random Seed: 42
+Total Images: 900
+
+Train: 630 images (70%)
+Validation: 135 images (15%)
+Test: 135 images (15%)
+
+Directory Structure:
+  C:\Users\SelmaB\Desktop\detection\dataset_split/
+    train/
+      images/
+      annotations/
+    val/
+      images/
+      annotations/
+    test/
+      images/
+      annotations/

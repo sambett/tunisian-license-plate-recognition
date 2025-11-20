@@ -1,0 +1,30 @@
+
+Final Validation Summary
+============================================================
+
+Total Images: 900
+Valid Pairs: 900
+Invalid Pairs: 0
+Total Errors: 0
+
+
+TRAIN:
+  Images: 630
+  Valid: 630
+  Invalid: 0
+  Orphan Images: 0
+  Orphan Annotations: 0
+
+VAL:
+  Images: 135
+  Valid: 135
+  Invalid: 0
+  Orphan Images: 0
+  Orphan Annotations: 0
+
+TEST:
+  Images: 135
+  Valid: 135
+  Invalid: 0
+  Orphan Images: 0
+  Orphan Annotations: 0

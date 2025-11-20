@@ -1,0 +1,19 @@
+# Streamlit App Dependencies
+# License Plate Detection System
+
+# Core Dependencies
+streamlit>=1.28.0
+ultralytics>=8.0.0
+opencv-python>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+
+# OCR Dependencies
+pytesseract>=0.3.10
+easyocr>=1.7.0
+
+# Already installed (for reference):
+# torch>=2.0.0
+# PyYAML>=6.0
+# matplotlib>=3.7.0
+# pandas>=2.0.0

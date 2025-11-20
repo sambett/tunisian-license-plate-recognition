@@ -46,8 +46,11 @@ datasets/
 # YOLO Training Outputs
 runs/
 runs_vehicle/
-yolov8*.pt
+outputs/
+
+# Model weights (exclude all except trained models)
 *.pt
+!models/**/*.pt
 
 # Temporary files
 temp_test_subset/
