@@ -542,64 +542,10 @@ Comprehensive technical documentation available:
 
 ---
 
-## 🔮 Future Work
-
-### Short-Term (1-3 months)
-
-- [ ] Expand test set to 100+ images
-- [ ] Implement super-resolution (ESRGAN)
-- [ ] Add deblurring preprocessing
-- [ ] Ensemble multiple OCR engines
-- [ ] GPU optimization for faster inference
-
-### Medium-Term (3-6 months)
-
-- [ ] Collect 10,000+ Tunisian plates with Arabic
-- [ ] Fine-tune custom Arabic OCR
-- [ ] Real-time video processing
-- [ ] Multi-frame fusion
-- [ ] Temporal tracking
-
-### Long-Term (6-12 months)
-
-- [ ] End-to-end joint training
-- [ ] Mobile deployment (TensorFlow Lite)
-- [ ] Multi-country Arabic plates support
-- [ ] Public benchmark dataset release
-- [ ] Cloud API deployment
 
 ---
 
-## 🤝 Contributing
 
-Contributions are welcome! Areas where help is needed:
-
-1. **Dataset Collection**
-   - More Tunisian plate images with Arabic "تونس"
-   - Diverse conditions (weather, lighting, angles)
-
-2. **Model Improvements**
-   - Better small object detection
-   - Deblurring algorithms
-   - Super-resolution models
-
-3. **Evaluation**
-   - Larger test sets
-   - Cross-validation
-   - Benchmark comparisons
-
-4. **Documentation**
-   - Tutorials
-   - API documentation
-   - Deployment guides
-
-### How to Contribute
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
 
 ---
 
@@ -608,13 +554,6 @@ Contributions are welcome! Areas where help is needed:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-
-## 👥 Authors
-
-**Selma B.**
-- Project Lead & Developer
-- Email: [Your Email]
-- GitHub: [@yourusername](https://github.com/yourusername)
 
 ---
 
@@ -628,21 +567,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Contact & Support
-
-- **Issues:** [GitHub Issues](https://github.com/yourusername/tunisian-plate-recognition/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/yourusername/tunisian-plate-recognition/discussions)
-- **Email:** [your.email@example.com]
-
----
-
-## 📊 Project Stats
-
-- **Lines of Code:** ~15,000+
-- **Training Time:** ~250 hours (all models)
-- **Models Trained:** 3 (vehicle, plate, OCR)
-- **Total Model Size:** ~45 MB
-- **Documentation Pages:** 100+
 
 ---
 
