@@ -16,6 +16,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import streamlit as st
 import numpy as np
+import pandas as pd
 from PIL import Image
 import cv2
 import io
@@ -37,6 +38,18 @@ try:
 except ImportError:
     EASYOCR_AVAILABLE = False
 
+# Import evaluation metrics
+try:
+    from ocr_evaluation import (
+        character_accuracy,
+        edit_distance_accuracy,
+        exact_match_accuracy,
+        normalize_plate_text
+    )
+    EVALUATION_AVAILABLE = True
+except ImportError:
+    EVALUATION_AVAILABLE = False
+
 # ============================================================================
 # PAGE CONFIGURATION
 # ============================================================================
@@ -48,65 +61,312 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Modern Dark Theme with Automotive Styling
 st.markdown("""
     <style>
+    /* Import Google Font */
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap');
+
+    /* Global Styles - Light Professional Background */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 50%, #dfe6ed 100%);
+    }
+
+    /* Make all text readable - dark text on light background */
+    .stMarkdown, .stText, p, span, label, .stSelectbox label, .stSlider label {
+        color: #2c3e50 !important;
+        font-size: 1.1rem !important;
+    }
+
+    /* Main Header - Solid Gradient Text */
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 4rem;
+        font-weight: 700;
         text-align: center;
-        background: linear-gradient(90deg, #1f77b4, #ff6b6b, #2ca02c);
+        background: linear-gradient(90deg, #1e88e5, #00acc1, #26a69a);
+        background-size: 200% auto;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-bottom: 1rem;
+        animation: gradient-shift 3s ease infinite;
+        margin-bottom: 0.5rem;
+        letter-spacing: 3px;
     }
-    .tab-header {
+
+    @keyframes gradient-shift {
+        0% { background-position: 0% center; }
+        50% { background-position: 100% center; }
+        100% { background-position: 0% center; }
+    }
+
+    .sub-header {
+        font-family: 'Rajdhani', sans-serif;
         font-size: 1.3rem;
-        color: #1f77b4;
-        margin-bottom: 1rem;
+        text-align: center;
+        color: #546e7a;
+        margin-bottom: 2rem;
+        letter-spacing: 4px;
+        text-transform: uppercase;
     }
+
+    /* Tab Header */
+    .tab-header {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1.4rem;
+        color: #1e88e5;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #1e88e5;
+    }
+
+    /* Info Box - Clean Light Style */
     .info-box {
-        background-color: #e7f3ff;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-        margin: 1rem 0;
-    }
-    .success-box {
-        background-color: #d4edda;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #28a745;
-        margin: 1rem 0;
-    }
-    .ocr-result {
-        font-size: 2.5rem;
-        font-weight: bold;
-        text-align: center;
-        color: #1f77b4;
+        background: linear-gradient(135deg, #e3f2fd 0%, #e0f7fa 100%);
         padding: 1.5rem;
-        background: #e7f3ff;
-        border-radius: 10px;
+        border-radius: 12px;
+        border-left: 4px solid #1e88e5;
         margin: 1rem 0;
-        font-family: monospace;
+        color: #2c3e50;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
-    .ocr-arabic {
-        font-size: 2rem;
+
+    /* Success Box */
+    .success-box {
+        background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid #43a047;
+        margin: 1rem 0;
+        color: #2c3e50;
+        font-size: 1.1rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    /* OCR Result - Clean Professional Display */
+    .ocr-result {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 3.2rem;
+        font-weight: 600;
         text-align: center;
-        color: #2ca02c;
-        padding: 0.5rem;
-        direction: rtl;
+        color: #1e88e5;
+        padding: 2rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+        border-radius: 16px;
+        border: 3px solid #1e88e5;
+        margin: 1.5rem 0;
+        box-shadow: 0 8px 30px rgba(30, 136, 229, 0.2);
+        letter-spacing: 5px;
     }
-    .metric-card {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+
+    .ocr-arabic {
+        font-size: 2.2rem;
+        text-align: center;
+        color: #00acc1;
         padding: 1rem;
-        border-radius: 10px;
+        direction: rtl;
+        font-weight: 600;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: #ffffff;
+        padding: 1.5rem;
+        border-radius: 12px;
         text-align: center;
         margin: 0.5rem 0;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
-    .confidence-high { color: #28a745; font-weight: bold; }
-    .confidence-medium { color: #ffc107; font-weight: bold; }
-    .confidence-low { color: #dc3545; font-weight: bold; }
+
+    /* Confidence Colors */
+    .confidence-high {
+        color: #43a047;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .confidence-medium {
+        color: #fb8c00;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .confidence-low {
+        color: #e53935;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    /* Streamlit Component Overrides */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: #ffffff;
+        padding: 0.8rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #546e7a;
+        background: transparent;
+        border-radius: 8px;
+        padding: 1rem 2rem;
+        letter-spacing: 1px;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+        color: #ffffff !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        background: linear-gradient(135deg, #1e88e5 0%, #00acc1 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.8rem 2rem;
+        letter-spacing: 1px;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(30, 136, 229, 0.4);
+    }
+
+    /* Download Buttons */
+    .stDownloadButton > button {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1rem;
+        background: #ffffff;
+        color: #1e88e5;
+        border: 2px solid #1e88e5;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+
+    .stDownloadButton > button:hover {
+        background: #e3f2fd;
+        box-shadow: 0 4px 15px rgba(30, 136, 229, 0.2);
+    }
+
+    /* File Uploader */
+    .stFileUploader {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 2px dashed #1e88e5;
+        padding: 1.5rem;
+    }
+
+    /* Sliders */
+    .stSlider > div > div > div {
+        background: linear-gradient(90deg, #1e88e5, #00acc1);
+    }
+
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.8rem !important;
+        color: #1e88e5;
+    }
+
+    [data-testid="stMetricLabel"] {
+        font-size: 1rem !important;
+        color: #546e7a !important;
+    }
+
+    /* Sidebar */
+    .css-1d391kg, [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #eceff1 0%, #e0e0e0 100%);
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #2c3e50 !important;
+    }
+
+    [data-testid="stSidebar"] .stMarkdown p,
+    [data-testid="stSidebar"] label {
+        color: #2c3e50 !important;
+        font-size: 1rem !important;
+    }
+
+    /* Expanders */
+    .streamlit-expanderHeader {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        color: #1e88e5;
+        background: #e3f2fd;
+        border-radius: 8px;
+    }
+
+    /* Spinner */
+    .stSpinner > div {
+        border-top-color: #1e88e5;
+    }
+
+    /* Section Dividers */
+    hr {
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #1e88e5, transparent);
+        margin: 2rem 0;
+    }
+
+    /* Image Containers */
+    .stImage {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Alerts/Warnings */
+    .stAlert {
+        background: #fff3e0;
+        border-radius: 12px;
+        border-left: 4px solid #fb8c00;
+        font-size: 1.1rem;
+    }
+
+    /* Code Blocks */
+    .stCodeBlock {
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 2rem;
+        color: #546e7a;
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 1.1rem;
+    }
+
+    .footer-glow {
+        color: #1e88e5;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+
+    /* Speedometer Animation */
+    .speed-icon {
+        display: inline-block;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -357,18 +617,45 @@ def load_easyocr_engine():
         return None
     return LicensePlateOCR()
 
+
+class OCRWithoutPreprocessing:
+    """OCR engine that runs without preprocessing (for comparison)"""
+
+    def __init__(self):
+        import easyocr
+        self.reader = easyocr.Reader(['ar', 'en'], gpu=False, verbose=False)
+
+    def read_plate(self, image):
+        """Read plate from raw image (minimal processing)."""
+        if isinstance(image, Image.Image):
+            image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+        # Only convert to grayscale (no preprocessing)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        try:
+            result = self.reader.readtext(gray, detail=0)
+            return ' '.join(result) if result else ""
+        except:
+            return ""
+
 # ============================================================================
 # MAIN APPLICATION
 # ============================================================================
 
 def main():
-    # Header
-    st.markdown('<h1 class="main-header">🚗 Tunisian License Plate Recognition</h1>',
-                unsafe_allow_html=True)
+    # Header with animated icon
+    st.markdown('''
+    <h1 class="main-header">
+        PLATEVISION
+    </h1>
+    <p class="sub-header">Tunisian License Plate Recognition System</p>
+    ''', unsafe_allow_html=True)
 
     st.markdown("""
     <div class="info-box">
-    <b>Modular Pipeline:</b> Each tab provides a separate functionality. Process images step by step.
+    <strong>MODULAR PIPELINE</strong><br>
+    Detect vehicles → Extract plates → Read text. Each stage outputs files for the next.
     </div>
     """, unsafe_allow_html=True)
 
@@ -744,6 +1031,62 @@ def main():
                             if isinstance(plate_img, np.ndarray):
                                 st.caption(f"Size: {plate_img.shape[1]} × {plate_img.shape[0]} px")
 
+                            # ADD ROTATION AND RESIZE CONTROLS
+                            with st.expander("🔧 Adjust Image (Rotate/Resize)"):
+                                rotation_angle = st.slider(
+                                    "Rotation Angle",
+                                    min_value=-180,
+                                    max_value=180,
+                                    value=0,
+                                    step=5,
+                                    key=f"rotate_{i}",
+                                    help="Rotate the cropped plate"
+                                )
+
+                                resize_scale = st.slider(
+                                    "Resize Scale (%)",
+                                    min_value=50,
+                                    max_value=200,
+                                    value=100,
+                                    step=10,
+                                    key=f"resize_{i}",
+                                    help="Resize the cropped plate"
+                                )
+
+                                if rotation_angle != 0 or resize_scale != 100:
+                                    adjusted_plate = plate_img.copy()
+
+                                    # Apply rotation
+                                    if rotation_angle != 0:
+                                        h, w = adjusted_plate.shape[:2]
+                                        center = (w // 2, h // 2)
+                                        M = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)
+                                        adjusted_plate = cv2.warpAffine(adjusted_plate, M, (w, h),
+                                                                        borderMode=cv2.BORDER_CONSTANT,
+                                                                        borderValue=(255, 255, 255))
+
+                                    # Apply resize
+                                    if resize_scale != 100:
+                                        new_w = int(adjusted_plate.shape[1] * resize_scale / 100)
+                                        new_h = int(adjusted_plate.shape[0] * resize_scale / 100)
+                                        adjusted_plate = cv2.resize(adjusted_plate, (new_w, new_h),
+                                                                   interpolation=cv2.INTER_LINEAR)
+
+                                    st.markdown("**Adjusted Preview:**")
+                                    st.image(adjusted_plate, use_container_width=True, channels="RGB")
+                                    st.caption(f"Size: {adjusted_plate.shape[1]} × {adjusted_plate.shape[0]} px")
+
+                                    # Download adjusted plate
+                                    adjusted_pil = numpy_to_pil(adjusted_plate, mode='RGB')
+                                    adjusted_bytes = pil_to_bytes(adjusted_pil, format='PNG')
+                                    st.download_button(
+                                        "⬇️ Download Adjusted",
+                                        adjusted_bytes,
+                                        f"plate_{det['plate_number']}_adjusted.png",
+                                        "image/png",
+                                        key=f"plate_adj_{i}"
+                                    )
+
                         with proc_cols[1]:
                             if enable_plate_enhancement:
                                 st.markdown(f"**Enhanced ({plate_method})**")
@@ -856,6 +1199,20 @@ def main():
             )
 
             st.markdown("---")
+            st.markdown("**Preprocessing Control**")
+
+            if EVALUATION_AVAILABLE and EASYOCR_AVAILABLE:
+                use_preprocessing = st.checkbox(
+                    "Enable Preprocessing",
+                    value=True,
+                    help="Enable/disable image preprocessing (denoising, enhancement) before OCR",
+                    key="use_preprocessing"
+                )
+                st.caption("ℹ️ Uncheck to see OCR performance on raw images")
+            else:
+                use_preprocessing = True
+
+            st.markdown("---")
             st.markdown("**Model Information**")
             if ocr_engine_choice == "CRNN (Trained Model)":
                 st.markdown(f"""
@@ -933,13 +1290,42 @@ def main():
                             max_probs = np.max(pred[0], axis=-1)
                             avg_confidence = np.mean(max_probs)
                         else:
-                            # Use EasyOCR engine
-                            pred_text = easyocr_engine.read_plate(ocr_image)
+                            # Use EasyOCR engine - check preprocessing flag
+                            if use_preprocessing:
+                                # With preprocessing (default)
+                                pred_text = easyocr_engine.read_plate(ocr_image)
+                            else:
+                                # Without preprocessing (raw OCR)
+                                ocr_raw = OCRWithoutPreprocessing()
+                                pred_text = ocr_raw.read_plate(ocr_image)
+
                             avg_confidence = 0.85  # EasyOCR doesn't return confidence easily
                             pred = None
 
-                    # Display results
+                        # Store results in session state so they persist
+                        st.session_state.ocr_result = {
+                            'pred_text': pred_text,
+                            'avg_confidence': avg_confidence,
+                            'pred': pred,
+                            'preprocessing_enabled': use_preprocessing
+                        }
+
+                # Display results (check session state so they persist)
+                if 'ocr_result' in st.session_state:
+                    result = st.session_state.ocr_result
+                    pred_text = result['pred_text']
+                    avg_confidence = result['avg_confidence']
+                    pred = result['pred']
+                    preprocessing_was_enabled = result.get('preprocessing_enabled', True)
+
                     st.markdown("---")
+
+                    # Show preprocessing status
+                    if preprocessing_was_enabled:
+                        st.success("✓ **With Preprocessing** - Image enhanced before OCR")
+                    else:
+                        st.warning("⚠ **Without Preprocessing** - Raw image sent to OCR")
+
                     st.markdown("### 📋 Recognition Result")
 
                     if pred_text:
@@ -999,6 +1385,280 @@ def main():
                             if show_arabic:
                                 st.code(arabic_text, language=None)
                                 st.caption("Arabic format (click to copy)")
+
+                        # ========== REMOVED OLD COMPARISON SECTION ==========
+                        # Now using simple toggle in sidebar
+                        if False and EVALUATION_AVAILABLE:
+                            st.markdown("---")
+                            st.markdown("### 🔬 Preprocessing Impact Comparison")
+
+                            st.markdown("""
+                            Comparing OCR results **with** and **without** preprocessing to show the enhancement impact.
+                            """)
+
+                            comp_cols = st.columns(2)
+
+                            with comp_cols[0]:
+                                st.markdown("#### ❌ Without Preprocessing")
+                                st.markdown(f"""
+                                <div style="background: #ffebee; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #ef5350;">
+                                    <div style="font-family: 'Orbitron', monospace; font-size: 1.8rem; color: #c62828; text-align: center;">
+                                        {pred_text_no_preproc}
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                st.caption("Raw OCR (grayscale only)")
+
+                            with comp_cols[1]:
+                                st.markdown("#### ✓ With Preprocessing")
+                                st.markdown(f"""
+                                <div style="background: #e8f5e9; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #66bb6a;">
+                                    <div style="font-family: 'Orbitron', monospace; font-size: 1.8rem; color: #2e7d32; text-align: center;">
+                                        {pred_text}
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                st.caption("Enhanced OCR (full preprocessing)")
+
+                            # Show comparison metrics if user provides ground truth
+                            st.markdown("")
+                            compare_gt = st.text_input(
+                                "Enter Ground Truth to see accuracy comparison",
+                                key="compare_ground_truth",
+                                placeholder="e.g., 123 تونس 456"
+                            )
+
+                            if compare_gt:
+                                # Calculate metrics for both
+                                char_acc_before = character_accuracy(compare_gt, pred_text_no_preproc)
+                                char_acc_after = character_accuracy(compare_gt, pred_text)
+                                edit_acc_before = edit_distance_accuracy(compare_gt, pred_text_no_preproc)
+                                edit_acc_after = edit_distance_accuracy(compare_gt, pred_text)
+                                exact_before = exact_match_accuracy(compare_gt, pred_text_no_preproc)
+                                exact_after = exact_match_accuracy(compare_gt, pred_text)
+
+                                st.markdown("---")
+                                st.markdown("### 📊 **Accuracy Scores: Before vs After Preprocessing**")
+
+                                # Show normalized versions
+                                norm_cols = st.columns(3)
+                                with norm_cols[0]:
+                                    st.markdown("**Ground Truth:**")
+                                    st.code(normalize_plate_text(compare_gt), language=None)
+
+                                with norm_cols[1]:
+                                    st.markdown("**Before Preprocessing:**")
+                                    st.code(normalize_plate_text(pred_text_no_preproc), language=None)
+
+                                with norm_cols[2]:
+                                    st.markdown("**After Preprocessing:**")
+                                    st.code(normalize_plate_text(pred_text), language=None)
+
+                                st.markdown("")
+
+                                # Create comparison table with clear before/after scores
+                                st.markdown("#### 📈 Detailed Metrics Comparison")
+
+                                # Build dataframe for display
+                                comparison_data = {
+                                    'Metric': [
+                                        'Exact Match',
+                                        'Character Accuracy',
+                                        'Edit Distance Accuracy'
+                                    ],
+                                    '❌ Before Preprocessing': [
+                                        '✓ Yes' if exact_before else '✗ No',
+                                        f"{char_acc_before*100:.1f}%",
+                                        f"{edit_acc_before*100:.1f}%"
+                                    ],
+                                    '✓ After Preprocessing': [
+                                        '✓ Yes' if exact_after else '✗ No',
+                                        f"{char_acc_after*100:.1f}%",
+                                        f"{edit_acc_after*100:.1f}%"
+                                    ],
+                                    '📊 Improvement': [
+                                        '✓' if exact_after and not exact_before else ('−' if not exact_after and exact_before else '='),
+                                        f"{(char_acc_after - char_acc_before)*100:+.1f}%",
+                                        f"{(edit_acc_after - edit_acc_before)*100:+.1f}%"
+                                    ]
+                                }
+
+                                df_comparison = pd.DataFrame(comparison_data)
+
+                                # Style the dataframe
+                                st.dataframe(
+                                    df_comparison,
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+
+                                # Visual metrics cards
+                                st.markdown("")
+                                st.markdown("#### 🎯 Key Improvements")
+
+                                metric_cols = st.columns(3)
+
+                                with metric_cols[0]:
+                                    char_improvement = char_acc_after - char_acc_before
+                                    st.metric(
+                                        "Character Accuracy",
+                                        f"{char_acc_after*100:.1f}%",
+                                        f"{char_improvement*100:+.1f}%",
+                                        delta_color="normal"
+                                    )
+                                    st.caption(f"Before: {char_acc_before*100:.1f}%")
+
+                                with metric_cols[1]:
+                                    edit_improvement = edit_acc_after - edit_acc_before
+                                    st.metric(
+                                        "Edit Distance Accuracy",
+                                        f"{edit_acc_after*100:.1f}%",
+                                        f"{edit_improvement*100:+.1f}%",
+                                        delta_color="normal"
+                                    )
+                                    st.caption(f"Before: {edit_acc_before*100:.1f}%")
+
+                                with metric_cols[2]:
+                                    if exact_after:
+                                        st.success("**Perfect Match!**")
+                                        st.markdown("### ✓")
+                                    elif char_improvement > 0:
+                                        st.success("**Improved**")
+                                        st.markdown(f"### +{char_improvement*100:.1f}%")
+                                    elif char_improvement < 0:
+                                        st.error("**Worse**")
+                                        st.markdown(f"### {char_improvement*100:.1f}%")
+                                    else:
+                                        st.info("**No Change**")
+                                        st.markdown("### 0%")
+
+                                # Summary interpretation
+                                st.markdown("---")
+                                st.markdown("#### 💡 Interpretation")
+
+                                improvement = char_acc_after - char_acc_before
+                                if exact_after:
+                                    st.success("🎉 **Perfect!** OCR achieved 100% accuracy after preprocessing!")
+                                elif improvement > 0.1:
+                                    st.success(f"✓ **Significant Improvement** - Preprocessing improved accuracy by {improvement*100:.1f} percentage points. This demonstrates strong enhancement impact!")
+                                elif improvement > 0:
+                                    st.info(f"↗ **Slight Improvement** - Preprocessing improved accuracy by {improvement*100:.1f} percentage points.")
+                                elif improvement < -0.05:
+                                    st.warning(f"⚠ **Accuracy Decreased** - Preprocessing reduced accuracy by {abs(improvement)*100:.1f} percentage points. The raw image may have been clearer.")
+                                else:
+                                    st.info("= **Similar Performance** - Preprocessing had minimal effect on this image. Both versions perform similarly.")
+
+                        # ========== NEW: OCR EVALUATION SECTION - ALWAYS VISIBLE ==========
+                        if EVALUATION_AVAILABLE:
+                            st.markdown("---")
+                            st.markdown("### 📊 OCR Evaluation")
+
+                            # Show preprocessing status tip
+                            preprocessing_status = st.session_state.ocr_result.get('preprocessing_enabled', True) if 'ocr_result' in st.session_state else True
+                            if preprocessing_status:
+                                st.info("💡 **Tip:** Uncheck **'Enable Preprocessing'** in the sidebar and run OCR again to compare scores!")
+
+                            st.markdown("""
+                            Enter the **actual plate text** (ground truth) to see accuracy scores.
+
+                            **Character-Level Metrics** give partial credit:
+                            - `"123445"` vs `"123456"` = **83.3%** correct ✓
+                            - `"999999"` vs `"123456"` = **0%** correct ✗
+                            """)
+
+                            ground_truth = st.text_input(
+                                "Ground Truth (Actual Plate Text)",
+                                key="ocr_ground_truth",
+                                placeholder="e.g., 123 تونس 456",
+                                help="Enter the actual text from the license plate"
+                            )
+
+                            if ground_truth:
+                                st.markdown("---")
+                                st.markdown("### 📊 **Accuracy Scores**")
+
+                                # Calculate metrics
+                                char_acc = character_accuracy(ground_truth, pred_text)
+                                edit_acc = edit_distance_accuracy(ground_truth, pred_text)
+                                exact = exact_match_accuracy(ground_truth, pred_text)
+
+                                # Display normalized versions
+                                st.markdown("#### 📝 Text Comparison")
+                                norm_cols = st.columns(2)
+                                with norm_cols[0]:
+                                    st.markdown("**Ground Truth (Normalized):**")
+                                    st.code(normalize_plate_text(ground_truth), language=None)
+
+                                with norm_cols[1]:
+                                    st.markdown("**OCR Prediction (Normalized):**")
+                                    st.code(normalize_plate_text(pred_text), language=None)
+
+                                # Display metrics in a clear table
+                                st.markdown("")
+                                st.markdown("#### 📈 Accuracy Metrics")
+
+                                # Create metrics table
+                                metrics_data = {
+                                    'Metric': ['Exact Match', 'Character Accuracy', 'Edit Distance Accuracy'],
+                                    'Score': [
+                                        '✓ Yes' if exact else '✗ No',
+                                        f"{char_acc*100:.1f}%",
+                                        f"{edit_acc*100:.1f}%"
+                                    ],
+                                    'Explanation': [
+                                        'Perfect 100% match' if exact else 'Not an exact match',
+                                        f'{int(char_acc * len(normalize_plate_text(ground_truth)))} out of {len(normalize_plate_text(ground_truth))} characters correct',
+                                        f'{int(edit_acc * 100)}% similar (edit distance based)'
+                                    ]
+                                }
+
+                                df_metrics = pd.DataFrame(metrics_data)
+                                st.dataframe(df_metrics, use_container_width=True, hide_index=True)
+
+                                # Display metrics as cards too
+                                st.markdown("")
+                                metric_cols = st.columns(3)
+
+                                with metric_cols[0]:
+                                    if exact:
+                                        st.success("**Exact Match**")
+                                        st.markdown("### ✓ Perfect")
+                                    else:
+                                        st.error("**Exact Match**")
+                                        st.markdown("### ✗ No")
+
+                                with metric_cols[1]:
+                                    st.info("**Character Accuracy**")
+                                    st.markdown(f"### {char_acc*100:.1f}%")
+                                    st.caption("Partial credit for correct chars")
+
+                                with metric_cols[2]:
+                                    st.info("**Edit Distance Acc**")
+                                    st.markdown(f"### {edit_acc*100:.1f}%")
+                                    st.caption("How close to ground truth")
+
+                                # Interpretation
+                                st.markdown("---")
+                                st.markdown("**Interpretation:**")
+
+                                if exact:
+                                    st.success("✓ **Perfect OCR** - Prediction exactly matches ground truth!")
+                                elif char_acc >= 0.9:
+                                    st.success(f"✓ **Excellent OCR** - {char_acc*100:.0f}% of characters correct (1-2 character errors)")
+                                elif char_acc >= 0.7:
+                                    st.info(f"ℹ️ **Good OCR** - {char_acc*100:.0f}% of characters correct (few character errors)")
+                                elif char_acc >= 0.5:
+                                    st.warning(f"⚠️ **Fair OCR** - {char_acc*100:.0f}% of characters correct (several errors)")
+                                else:
+                                    st.error(f"✗ **Poor OCR** - Only {char_acc*100:.0f}% correct (major errors)")
+
+                                st.markdown("""
+                                <small>
+                                💡 <b>Tip:</b> Character-level metrics help evaluate preprocessing impact.
+                                Use <code>recognition3/generate_ocr_scores.py</code> to batch-evaluate
+                                OCR performance before/after preprocessing on multiple images.
+                                </small>
+                                """, unsafe_allow_html=True)
 
                     else:
                         st.warning("⚠️ No text detected in the image. Try uploading a clearer plate image.")
@@ -1063,9 +1723,10 @@ def main():
     # Footer
     st.markdown("---")
     st.markdown("""
-    <div style='text-align: center; color: #666;'>
-        🚗 Tunisian License Plate Recognition System<br>
-        <small>Vehicle Detection → Plate Detection → OCR</small>
+    <div class="footer">
+        <span class="footer-glow">PLATEVISION</span><br>
+        <small>VEHICLE DETECTION • PLATE EXTRACTION • OCR RECOGNITION</small><br>
+        <small style="color: #444;">Powered by YOLOv8 & CRNN-CTC</small>
     </div>
     """, unsafe_allow_html=True)
 
